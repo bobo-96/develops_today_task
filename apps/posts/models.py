@@ -34,15 +34,6 @@ class Post(models.Model):
         self.amount_of_upvotes += 1
 
 
-    # def downvote(self, user):
-    #     try:
-    #         self.post_votes.create(user=user, post=self, vote_type="down")
-    #         self.votes -= 1
-    #         self.save()
-    #     except IntegrityError:
-    #         return 'already_downvoted'
-    #     return 'ok'
-
 
 class Comment(models.Model):
     post = models.ForeignKey(
