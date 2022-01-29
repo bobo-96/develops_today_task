@@ -1,0 +1,80 @@
+version: "3"
+
+
+services:
+
+  postgresdb:
+    container_name: develops_today_db
+    build:
+      context: ./docker/postgres
+      dockerfile: ./Dockerfile
+    environment:
+      - POSTGRES_PASSWORD=develops_today_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  web:
+    container_name: develops_today_app
+    build:
+      context: ./
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/usr/src/app
+    command: >
+       sh -c "python3 manage.py makemigrations --noinput &&
+              python3 manage.py migrate --noinput &&
+              python3 manage.py collectstatic --noinput &&
+              exec gunicorn core.wsgi:application -b 0.0.0.0:8000 --reload"
+    depends_on:
+      - postgresdb
+
+  nginx:
+    container_name: develops_today_nginx
+    build:
+      context: ./docker/nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    volumes:
+      - ./static/:/static
+    depends_on:
+      - postgresdb
+      - web
+
+  redis:
+    container_name: develops_today_redis
+    image: redis
+
+  celery:
+    build:
+      context: .
+    container_name: celery-worker
+    restart: always
+    command: sh -c "celery -A core worker -l INFO"
+    volumes:
+      - ./:/usr/src/app
+    depends_on:
+      - redis
+      - web
+      - postgresdb
+
+  celery-beat:
+    build:
+      context: .
+    image: celery
+    container_name: celery-beat
+    restart: always
+    command: celery -A core beat -l INFO
+    volumes:
+      - ./:/usr/src/app
+    depends_on:
+      - redis
+      - celery
+      - web
+      - postgresdb
+
+volumes:
+  pgdata:
